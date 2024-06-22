@@ -20,7 +20,6 @@ class InflightJob:
 
 @app.get("/get_job")
 def get_job():
-    print(id_, untaken_jobs, inflight_jobs)
     try:
         job_id = untaken_jobs.popleft()
     except IndexError:
@@ -30,7 +29,6 @@ def get_job():
 
 @app.route("/submit_job", methods=['POST'])
 def submit_job():
-    print(id_, untaken_jobs, inflight_jobs)
     response = JobResponse(**request.json)
     assert response.id in inflight_jobs
 
@@ -61,4 +59,4 @@ def chat_completions_wrapper():
     return inflight_jobs[job.id].response.body
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(host='0.0.0.0', port=9090)
