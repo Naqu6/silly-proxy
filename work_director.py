@@ -45,7 +45,6 @@ def chat_completions_wrapper():
     job = Job(
         id=id_,
         request_body=request.json,
-        url='/chat/completions'
     )
     id_ += 1
 
@@ -61,6 +60,5 @@ def chat_completions_wrapper():
 
     return inflight_jobs[job.id].response.body
 
-
 if __name__ == '__main__':
-    app.run(host= '0.0.0.0',debug=True)
+    app.run(host='0.0.0.0')

@@ -6,7 +6,6 @@ NUM_WORKERS = 100
 class Job:
     id: int
     request_body: dict
-    url: str
 
 @dataclasses.dataclass
 class JobResponse:
