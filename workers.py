@@ -58,7 +58,7 @@ def worker(work_director_address, local_server_address, model_name, log_dir):
                 )
                 t.start()
         except:
-            pass # in prod, don't fail silently. Log the error instead.
+            pass
 
 
 
@@ -67,7 +67,7 @@ def main():
     parser.add_argument("--work_director_address", required=True)
     parser.add_argument("--local_server_address", required=True)
     parser.add_argument("--model_name", required=True)
-    parser.add_argument("--log_dir", required=False, default=None, type=Path | None)
+    parser.add_argument("--log_dir", required=False, default=None, type=Path)
     args = parser.parse_args()
 
     for _ in range(NUM_WORKERS):
