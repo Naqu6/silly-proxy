@@ -22,7 +22,7 @@ class InflightJob:
 app = FastAPI()
 
 @app.get("/get_job")
-async def get_job():
+def get_job():
     jobs = []
 
     for _ in range(MAX_JOBS_PER_REQUEST):
@@ -36,7 +36,7 @@ async def get_job():
     return [inflight_jobs[job_id].job.dict() for job_id in jobs]
 
 @app.post("/submit_job")
-async def submit_job(response: JobResponse):
+def submit_job(response: JobResponse):
     assert response.id in inflight_jobs
 
     inflight_jobs[response.id].response = response
@@ -45,9 +45,9 @@ async def submit_job(response: JobResponse):
     return {"ok": True}
 
 @app.post('/chat/completions')
-async def chat_completions_wrapper(request: Request):
+def chat_completions_wrapper(request: Request):
     global id_
-    request_body = await request.json()
+    request_body = request.json()
     job = Job(
         id=id_,
         request_body=request_body,
