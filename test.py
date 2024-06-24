@@ -1,31 +1,43 @@
 import threading
 import time
 import requests
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, Body
+from fastapi.responses import JSONResponse
 import subprocess
 import signal
 import logging
+import uvicorn
+from pydantic import BaseModel
 
 NUM_REQUESTS = 100
 
 
+class ChatCompletionRequest(BaseModel):
+    index: int
+    input: str
+    model: str
+
+
 def create_mock_server(port):
-    app = Flask("mock_server")
-    @app.route("/v1/chat/completions", methods=["POST"])
-    def chat_completions():
-        data = request.json
+    app = FastAPI()
+
+    @app.post("/v1/chat/completions")
+    def chat_completions(request: ChatCompletionRequest):
         response_body = {
             "message": f"Processed by mock server on port {port}",
-            "data": data["index"],
+            "data": request.index,
         }
-        return jsonify(response_body), 200
-    app.run(host="0.0.0.0", port=port)
+        return JSONResponse(content=response_body, media_type="application/json")
+
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
 
 # Function to start work_director process
 def start_work_director():
     process = subprocess.Popen(
-        ["python3", "work_director.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        ["python3", "work_director.py"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
     return process
 
@@ -62,17 +74,14 @@ def main():
     mock_server_thread.start()
 
     # Let the servers startup
-    time.sleep(2)
+    time.sleep(1)
 
     # Start workers
     workers_process = start_workers(
         "http://localhost:9090", f"http://localhost:{mock_server_port}", "test-model"
     )
 
-    response = requests.post(
-        "http://localhost:9090/chat/completions",
-        json={"input": f"Test input {0}", "index": 0},
-    )
+    time.sleep(1)
 
     if True:
         # try:
@@ -90,13 +99,11 @@ def main():
             t = threading.Thread(target=make_request, args=(i,))
             t.start()
             threads.append(t)
-            time.sleep(0.005)
 
         for thread in threads:
             thread.join()
 
-
-        assert len({response['data'] for response in responses}) == NUM_REQUESTS
+        assert len({response["data"] for response in responses}) == NUM_REQUESTS
         # finally:
         workers_process.send_signal(signal.SIGKILL)
         workers_process.wait()

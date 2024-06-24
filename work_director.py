@@ -1,27 +1,28 @@
-from flask import Flask, request, jsonify
-app = Flask(__name__)
-from shared import Job, JobResponse
-
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from typing import List, Dict
 from collections import deque
 import threading
-import dataclasses
+
+from shared import Job, JobResponse
 
 MAX_JOBS_PER_REQUEST = 5
 
 id_ = 0
 untaken_jobs = deque()
-
 inflight_jobs = {}
 
-@dataclasses.dataclass
 class InflightJob:
-    job: Job
-    done_event: threading.Event
-    response: JobResponse
+    def __init__(self, job: Job, done_event: threading.Event):
+        self.job = job
+        self.done_event = done_event
+        self.response = None
 
+app = FastAPI()
 
 @app.get("/get_job")
-def get_job():
+async def get_job():
     jobs = []
 
     for _ in range(MAX_JOBS_PER_REQUEST):
@@ -32,11 +33,10 @@ def get_job():
         
         jobs.append(job_id)
         
-    return [vars(inflight_jobs[job_id].job) for job_id in jobs]
+    return [inflight_jobs[job_id].job.dict() for job_id in jobs]
 
-@app.route("/submit_job", methods=['POST'])
-def submit_job():
-    response = JobResponse(**request.json)
+@app.post("/submit_job")
+async def submit_job(response: JobResponse):
     assert response.id in inflight_jobs
 
     inflight_jobs[response.id].response = response
@@ -44,12 +44,13 @@ def submit_job():
 
     return {"ok": True}
 
-@app.route('/chat/completions', methods=['POST'])
-def chat_completions_wrapper():
+@app.post('/chat/completions')
+async def chat_completions_wrapper(request: Request):
     global id_
+    request_body = await request.json()
     job = Job(
         id=id_,
-        request_body=request.json,
+        request_body=request_body,
     )
     id_ += 1
 
@@ -58,12 +59,13 @@ def chat_completions_wrapper():
     job_done_event = threading.Event()
     job_done_event.clear()
 
-    inflight_jobs[job.id] = InflightJob(job, job_done_event, None)
+    inflight_jobs[job.id] = InflightJob(job, job_done_event)
     untaken_jobs.append(job.id)
 
     inflight_jobs[job.id].done_event.wait()
 
-    return inflight_jobs[job.id].response.body
+    return JSONResponse(inflight_jobs[job.id].response.body)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=9090)
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=9090)

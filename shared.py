@@ -1,12 +1,10 @@
-import dataclasses
+from pydantic import BaseModel
 
-@dataclasses.dataclass
-class Job:
+class Job(BaseModel):
     id: int
     request_body: dict
 
-@dataclasses.dataclass
-class JobResponse:
+class JobResponse(BaseModel):
     id: int
     response_code: int
     body: dict
