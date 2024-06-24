@@ -8,7 +8,9 @@ import dataclasses
 
 MAX_JOBS_PER_REQUEST = 5
 
+id_lock = threading.Lock()
 id_ = 0
+
 untaken_jobs = deque()
 
 inflight_jobs = {}
@@ -47,11 +49,13 @@ def submit_job():
 @app.route('/chat/completions', methods=['POST'])
 def chat_completions_wrapper():
     global id_
-    job = Job(
-        id=id_,
-        request_body=request.json,
-    )
-    id_ += 1
+
+    with id_lock:
+        job = Job(
+            id=id_,
+            request_body=request.json,
+        )
+        id_ += 1
 
     assert job.id not in inflight_jobs
 
