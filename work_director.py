@@ -6,6 +6,8 @@ from collections import deque
 import threading
 import dataclasses
 
+MAX_JOBS_PER_REQUEST = 5
+
 id_ = 0
 untaken_jobs = deque()
 
@@ -20,12 +22,17 @@ class InflightJob:
 
 @app.get("/get_job")
 def get_job():
-    try:
-        job_id = untaken_jobs.popleft()
-    except IndexError:
-        return {}
-    
-    return vars(inflight_jobs[job_id].job)
+    jobs = []
+
+    for _ in range(MAX_JOBS_PER_REQUEST):
+        try:
+            job_id = untaken_jobs.popleft()
+        except IndexError:
+            break
+        
+        jobs.append(job_id)
+        
+    return [vars(inflight_jobs[job_id].job) for job_id in jobs]
 
 @app.route("/submit_job", methods=['POST'])
 def submit_job():

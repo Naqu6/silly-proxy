@@ -1,7 +1,5 @@
 import dataclasses
 
-NUM_WORKERS = 100
-
 @dataclasses.dataclass
 class Job:
     id: int
