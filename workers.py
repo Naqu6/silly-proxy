@@ -1,3 +1,4 @@
+from pathlib import Path
 import sys
 import threading
 
@@ -6,11 +7,12 @@ import requests
 
 import time
 import argparse
+import json
 
 NUM_WORKERS = 5
 requests_served = 0
 
-def handle_job(job, work_director_address, local_server_address, model_name):
+def handle_job(job, work_director_address, local_server_address, model_name, log_dir):
     global requests_served
 
     job.request_body["model"] = model_name
@@ -23,30 +25,40 @@ def handle_job(job, work_director_address, local_server_address, model_name):
     job_response = JobResponse(
         id=job.id, response_code=response.status_code, body=response.json()
     )
+
+    if log_dir is not None:
+        log_dir.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_dir / f"job_{job.id}.json", "w") as f:
+            json.dump({"request": job.request_body, "response": job_response.body}, f)
+
     requests.post(f"{work_director_address}/submit_job", json=vars(job_response))
     requests_served += 1
 
 
-def worker(work_director_address, local_server_address, model_name):
+def worker(work_director_address, local_server_address, model_name, log_dir):
     while True:
-        response = requests.get(f"{work_director_address}/get_job")
+        try:
+            response = requests.get(f"{work_director_address}/get_job")
 
-        if response.status_code != 200:
-            continue
+            if response.status_code != 200:
+                continue
 
-        jobs_data = response.json()
+            jobs_data = response.json()
 
-        for job_data in jobs_data:
-            t = threading.Thread(
-                target=handle_job,
-                args=(
-                    Job(**job_data),
-                    work_director_address,
-                    local_server_address,
-                    model_name,
-                ),
-            )
-            t.start()
+            for job_data in jobs_data:
+                t = threading.Thread(
+                    target=handle_job,
+                    args=(
+                        Job(**job_data),
+                        work_director_address,
+                        local_server_address,
+                        model_name,
+                        log_dir
+                    ),
+                )
+                t.start()
+        except:
+            pass # in prod, don't fail silently. Log the error instead.
 
 
 
@@ -55,6 +67,7 @@ def main():
     parser.add_argument("--work_director_address", required=True)
     parser.add_argument("--local_server_address", required=True)
     parser.add_argument("--model_name", required=True)
+    parser.add_argument("--log_dir", required=False, default=None, type=Path | None)
     args = parser.parse_args()
 
     for _ in range(NUM_WORKERS):
@@ -64,6 +77,7 @@ def main():
                 args.work_director_address,
                 args.local_server_address,
                 args.model_name,
+                args.log_dir,
             ),
         )
         t.start()
