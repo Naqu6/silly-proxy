@@ -9,7 +9,7 @@ import logging
 import uvicorn
 from pydantic import BaseModel
 
-NUM_REQUESTS = 100
+NUM_REQUESTS = 5
 
 
 class ChatCompletionRequest(BaseModel):
